@@ -4,7 +4,7 @@ version = "1.0.0"
 authors = []
 
 [addresses]
-anand_addr = "3e86703bd08934bf3cab92dc94550f5da643ffbf9d227cbca25c18507de66cbc"
+anand_addr = "0x3e86703bd08934bf3cab92dc94550f5da643ffbf9d227cbca25c18507de66cbc"
 [dev-addresses]
 
 [dependencies.AptosFramework]

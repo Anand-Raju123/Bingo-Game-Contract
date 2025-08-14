@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Bingo Frontend</title>
+	<style>
+		body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
+		.container { max-width: 900px; margin: 0 auto; }
+		.controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+		input[type="text"], input[type="number"] { padding: 8px; font-size: 14px; width: 320px; }
+		button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
+		.grid { display: grid; grid-template-columns: repeat(15, 1fr); gap: 6px; margin-top: 16px; }
+		.cell { border: 1px solid #ddd; padding: 8px; text-align: center; border-radius: 6px; font-weight: 600; }
+		.cell.called { background: #4caf50; color: white; border-color: #3c8c41; }
+		.badge { display: inline-block; padding: 4px 8px; border-radius: 12px; background: #eee; margin-left: 8px; }
+		.status { margin-top: 8px; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h2>Bingo Game</h2>
+		<div class="controls">
+			<input id="owner" type="text" placeholder="Owner address (e.g., 0xabc...)" />
+			<input id="fee" type="number" placeholder="Entry fee (optional)" />
+			<button id="create">Create Game</button>
+			<button id="call">Call Number</button>
+		</div>
+		<div class="status">
+			<div>Active: <span id="active">-</span> <span id="progress" class="badge"></span></div>
+			<div>Numbers called: <span id="numbers">[]</span></div>
+		</div>
+		<div id="grid" class="grid"></div>
+	</div>
+	<script>
+		const API = location.origin.includes(":8000") || location.origin.includes("localhost") ? location.origin : "http://localhost:8000";
+		const ownerEl = document.getElementById('owner');
+		const feeEl = document.getElementById('fee');
+		const createBtn = document.getElementById('create');
+		const callBtn = document.getElementById('call');
+		const activeEl = document.getElementById('active');
+		const progressEl = document.getElementById('progress');
+		const numbersEl = document.getElementById('numbers');
+		const gridEl = document.getElementById('grid');
+
+		function renderGrid(called) {
+			gridEl.innerHTML = '';
+			const set = new Set(called);
+			for (let n = 1; n <= 75; n++) {
+				const div = document.createElement('div');
+				div.className = 'cell' + (set.has(n) ? ' called' : '');
+				div.textContent = String(n);
+				gridEl.appendChild(div);
+			}
+		}
+
+		async function refresh() {
+			const owner = ownerEl.value.trim();
+			if (!owner) return;
+			try {
+				const res = await fetch(`${API}/games/${owner}`);
+				if (!res.ok) throw new Error('Game not found');
+				const data = await res.json();
+				activeEl.textContent = data.is_active;
+				progressEl.textContent = `${data.total_numbers}/75`;
+				numbersEl.textContent = JSON.stringify(data.numbers_called);
+				renderGrid(data.numbers_called);
+			} catch (e) {
+				activeEl.textContent = '-';
+				progressEl.textContent = '';
+				numbersEl.textContent = '[]';
+				renderGrid([]);
+			}
+		}
+
+		createBtn.addEventListener('click', async () => {
+			const owner = ownerEl.value.trim();
+			if (!owner) { alert('Enter owner address'); return; }
+			const entry_fee = Number(feeEl.value || 0);
+			const res = await fetch(`${API}/games`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner, entry_fee }) });
+			if (!res.ok) { alert('Failed to create game'); return; }
+			await refresh();
+		});
+
+		callBtn.addEventListener('click', async () => {
+			const owner = ownerEl.value.trim();
+			if (!owner) { alert('Enter owner address'); return; }
+			const res = await fetch(`${API}/games/${owner}/call-number`, { method: 'POST' });
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				alert('Failed: ' + (err.detail || res.status));
+				return;
+			}
+			await refresh();
+		});
+
+		renderGrid([]);
+	</script>
+</body>
+</html>
